@@ -73,34 +73,94 @@ const FoodDetails: React.FC = () => {
 
   useEffect(() => {
     async function loadFood(): Promise<void> {
-      // Load a specific food with extras based on routeParams id
+      try {
+        const response = await api.get(`/foods/${routeParams.id}`);
+
+        const foodData = response.data;
+
+        setFood({
+          ...foodData,
+          formattedPrice: formatValue(foodData.price),
+        });
+
+        setExtras(
+          foodData.extras.map((extra: Omit<Extra, 'quantity'>) => ({
+            ...extra,
+            quantity: 0,
+          })),
+        );
+      } catch (err) {
+        console.log('error', err);
+      }
     }
 
     loadFood();
   }, [routeParams]);
 
+  useEffect(() => {
+    async function loadFavorite(): Promise<void> {
+      try {
+        const response = await api.get(`/favorites/${routeParams.id}`);
+        console.log(response);
+        if (response.data) {
+          setIsFavorite(true);
+        }
+      } catch (err) {
+        console.log('error', err);
+      }
+    }
+
+    loadFavorite();
+  }, [routeParams]);
+
   function handleIncrementExtra(id: number): void {
-    // Increment extra quantity
+    setExtras(
+      extras.map(extra =>
+        extra.id === id ? { ...extra, quantity: extra.quantity + 1 } : extra,
+      ),
+    );
   }
 
   function handleDecrementExtra(id: number): void {
-    // Decrement extra quantity
+    const findExtra = extras.find(extra => extra.id === id);
+
+    if (!findExtra) return;
+
+    if (findExtra.quantity === 0) return;
+
+    setExtras(
+      extras.map(extra =>
+        extra.id === id ? { ...extra, quantity: extra.quantity - 1 } : extra,
+      ),
+    );
   }
 
   function handleIncrementFood(): void {
-    // Increment food quantity
+    setFoodQuantity(foodQuantity + 1);
   }
 
   function handleDecrementFood(): void {
-    // Decrement food quantity
+    if (foodQuantity > 1) setFoodQuantity(foodQuantity - 1);
   }
 
   const toggleFavorite = useCallback(() => {
-    // Toggle if food is favorite or not
+    if (isFavorite) {
+      api.delete(`/favorites/${food.id}`);
+    } else {
+      api.post(`favorites`, food);
+    }
+
+    setIsFavorite(!isFavorite);
   }, [isFavorite, food]);
 
   const cartTotal = useMemo(() => {
-    // Calculate cartTotal
+    const extraTotal = extras.reduce((accumulator, extra) => {
+      return accumulator + extra.quantity * extra.value;
+    }, 0);
+
+    const foodTotal = food.price;
+
+    return formatValue((extraTotal + foodTotal) * foodQuantity);
   }, [extras, food, foodQuantity]);
 
   async function handleFinishOrder(): Promise<void> {
